@@ -120,6 +120,38 @@ def noise_diagnostics(rgb,roi,base):
     columns=['Method','Threshold','Positive score pixels','Before cleanup pixels','After cleanup pixels','Median-filter trial pixels','Median-filter trial IoU']
     return pd.DataFrame(rows,columns=columns),comparison
 
+def noise_optimization_trials(rgb,roi,base):
+    """Exploratory grid; never modifies the standard robustness pipeline."""
+    noisy=disturb(rgb,'Gaussian noise')
+    filters={
+        'None':noisy,
+        'Median 3x3':cv2.medianBlur(noisy,3),
+        'Gaussian 3x3':cv2.GaussianBlur(noisy,(3,3),0.8),
+    }
+    rows=[]
+    for method in METHODS:
+        baseline=base[method]
+        for filter_name,filtered in filters.items():
+            gray=cv2.cvtColor(filtered,cv2.COLOR_RGB2GRAY)
+            clahe=cv2.createCLAHE(clipLimit=2.,tileGridSize=(8,8)).apply(gray)
+            if method=='Black-hat':
+                kernel=cv2.getStructuringElement(cv2.MORPH_ELLIPSE,(15,15))
+                score=cv2.morphologyEx(clahe,cv2.MORPH_BLACKHAT,kernel).astype(np.float32)
+                pct=94
+            else:
+                score=frangi(clahe.astype(np.float32)/255.,sigmas=np.arange(1,4.6,.5),black_ridges=True).astype(np.float32)
+                pct=88
+            threshold=np.percentile(score[roi],pct)
+            raw=(score>threshold)&(score>0)&roi
+            for min_size in (8,12,18):
+                trial=remove_small_objects(raw,min_size=min_size).astype(bool)
+                inter=int(np.logical_and(baseline,trial).sum())
+                union=int(np.logical_or(baseline,trial).sum())
+                iou=inter/union if union else 1.
+                dice=2*inter/(int(baseline.sum())+int(trial.sum())) if (baseline.sum()+trial.sum()) else 1.
+                rows.append([method,filter_name,min_size,int(raw.sum()),int(trial.sum()),round(iou,4),round(dice,4)])
+    return pd.DataFrame(rows,columns=['Method','Filter','Min size','Before cleanup pixels','Trial pixels','IoU','Dice'])
+
 def run_analysis(img,landmarker):
     rgb=np.array(img.convert('RGB'))
     h,w=rgb.shape[:2]
@@ -147,6 +179,8 @@ def run_analysis(img,landmarker):
             images[f'comparison_{condition.lower().replace(" ","_")}_{m.lower().replace("-","_")}.png']=png_bytes(panel)
     df=pd.DataFrame(records,columns=['Perturbation','Method','IoU','Dice','Baseline pixels','Changed pixels','Intersection pixels','Union pixels'])
     diagnostic_df,diagnostic_panels=noise_diagnostics(rgb,roi,base)
+    optimization_df=noise_optimization_trials(rgb,roi,base)
+    images['gaussian_noise_optimization_trials.csv']=optimization_df.to_csv(index=False).encode()
     images['gaussian_noise_diagnostics.csv']=diagnostic_df.to_csv(index=False).encode()
     for m,im in diagnostic_panels.items():
         images[f'noise_median_trial_{m.lower().replace("-","_")}.png']=png_bytes(im)
@@ -166,4 +200,4 @@ def run_analysis(img,landmarker):
     buf=io.BytesIO()
     with zipfile.ZipFile(buf,'w',zipfile.ZIP_DEFLATED) as z:
         for name,data in images.items():z.writestr(name,data)
-    return dict(diagnostic_df=diagnostic_df,diagnostic_panels=diagnostic_panels,rgb=Image.fromarray(rgb),roi=roi_preview(rgb,roi),base={m:overlay(rgb,base[m]) for m in METHODS},baseline=baseline_df,df=df,panels=panels,zip=buf.getvalue(),roi_pixels=int(roi.sum()))
+    return dict(optimization_df=optimization_df,diagnostic_df=diagnostic_df,diagnostic_panels=diagnostic_panels,rgb=Image.fromarray(rgb),roi=roi_preview(rgb,roi),base={m:overlay(rgb,base[m]) for m in METHODS},baseline=baseline_df,df=df,panels=panels,zip=buf.getvalue(),roi_pixels=int(roi.sum()))
