@@ -178,6 +178,10 @@ with tabs[0]:
         diag_title={'AZ':'Gaussian noise: mərhələli diaqnostika və sınaq','EN':'Gaussian noise: step-by-step diagnostics and trial','RU':'Гауссов шум: диагностика и пробный вариант'}[lang]
         with st.expander(diag_title,expanded=True):
             st.caption({'AZ':'Standart IoU/Dice nəticələri saxlanılıb. Median filter alternativ sınaqdır; zəif IoU hələ də sabitlik problemini göstərir.','EN':'The original IoU/Dice values are unchanged. Median filtering is an experimental alternative only.','RU':'Исходные IoU/Dice не изменены. Медианный фильтр — только экспериментальный вариант.'}[lang])
+            st.markdown({'AZ':'**Eksperimental optimallaşdırma müqayisəsi (standart nəticələr dəyişmir)**','EN':'**Experimental optimization comparison (standard results unchanged)**','RU':'**Экспериментальное сравнение (основные результаты без изменений)**'}[lang])
+            opt=r['optimization_df']
+            st.dataframe(opt.sort_values(['Method','IoU'],ascending=[True,False]),use_container_width=True,hide_index=True)
+            st.caption({'AZ':'IoU eyni görüntünün ilkin maskası ilə uyğunluqdur; klinik dəqiqlik deyil. Ən yaxşı variantı yalnız bir görüntüyə əsasən seçməyin. CSV hesabat ZIP-indədir.','EN':'IoU measures agreement with the original mask, not clinical accuracy. Do not select a final setting from one image. CSV is in the report ZIP.','RU':'IoU измеряет совпадение с исходной маской, а не клиническую точность. Не выбирайте окончательный вариант по одному изображению. CSV в ZIP-отчёте.'}[lang])
             diag=r['diagnostic_df']
             st.dataframe(diag,use_container_width=True,hide_index=True)
             for _,row in diag.iterrows():
