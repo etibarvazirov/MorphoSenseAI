@@ -180,7 +180,7 @@ with tabs[0]:
             "Русский": "ru",
         }.get(str(lang), str(lang).lower())
 
-diag_title = diag_titles.get(lang_code, diag_titles["en"])
+        diag_title = diag_titles.get(lang_code, diag_titles["en"])
         with st.expander(diag_title,expanded=True):
             st.caption({'az':'Əsas IoU/Dice nəticələri dəyişdirilməyib. Median filter yalnız alternativ sınaqdır.','en':'The original IoU/Dice values are unchanged. Median filtering is an experimental alternative only.','ru':'Исходные IoU/Dice не изменены. Медианный фильтр — только экспериментальный вариант.'}[lang])
             diag=r['diagnostic_df']
