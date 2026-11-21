@@ -165,7 +165,22 @@ with tabs[0]:
         st.dataframe(noise[['Method','Baseline pixels','Changed pixels','Intersection pixels','IoU']],use_container_width=True,hide_index=True)
         if (noise['Changed pixels']==0).any():st.warning(t['empty'])
 
-        diag_title={'az':'Gaussian noise: mərhələli diaqnostika və sınaq','en':'Gaussian noise: step-by-step diagnostics and trial','ru':'Гауссов шум: диагностика и пробный вариант'}[lang]
+        diag_titles = {
+            "az": "Gaussian noise: mərhələli diaqnostika və sınaq",
+            "en": "Gaussian noise: step-by-step diagnostics and trial",
+            "ru": "Гауссов шум: диагностика и пробный вариант"
+        }
+        
+        lang_code = {
+            "AZ": "az",
+            "EN": "en",
+            "RU": "ru",
+            "Azərbaycan": "az",
+            "English": "en",
+            "Русский": "ru",
+        }.get(str(lang), str(lang).lower())
+
+diag_title = diag_titles.get(lang_code, diag_titles["en"])
         with st.expander(diag_title,expanded=True):
             st.caption({'az':'Əsas IoU/Dice nəticələri dəyişdirilməyib. Median filter yalnız alternativ sınaqdır.','en':'The original IoU/Dice values are unchanged. Median filtering is an experimental alternative only.','ru':'Исходные IoU/Dice не изменены. Медианный фильтр — только экспериментальный вариант.'}[lang])
             diag=r['diagnostic_df']
