@@ -1,4 +1,68 @@
-'about':'Layihənin məqsədi','aboutbody':'MorphoSense AI ovuc xətlərinin mümkün namizədlərini çıxaran və görüntü keyfiyyətinin bu nəticələrə təsirini göstərən təhsil və tədqiqat prototipidir. Gələcəkdə ekspert annotasiyaları, daha çox görüntü və müstəqil validasiya ilə inkişaf etdirilə bilər.','refs':'Elmi mənbələr','need':'Analizə başlamaq üçün əvvəlcə ovuc şəkli yüklə.','wins':'Black-hat üstün olduğu testlər','meanbh':'Black-hat orta IoU','meanfr':'Frangi orta IoU','lowest':'Ən böyük dəyişiklik','winner':'Bu görüntüdə Black-hat {n}/5 testdə daha yüksək uyğunluq göstərdi. Bu, klinik dəqiqlik sübutu deyil.'},
+import os
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+from PIL import Image,ImageOps
+from engine import CONDITIONS,METHODS,P2,P3,get_landmarker,run_analysis
+
+st.set_page_config(page_title='MorphoSense AI | Palm Crease Lab',page_icon='🖐️',layout='wide',initial_sidebar_state='expanded')
+
+CSS='''
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
+html,body,[class*="css"],.stApp {font-family:'DM Sans',sans-serif;}
+.stApp {background:linear-gradient(140deg,#071521 0%,#0c1d2b 48%,#0b1622 100%);color:#edf7fb;}
+section[data-testid="stSidebar"] {background:#EAF3F8 !important;border-right:1px solid #B8CDD9 !important;}
+
+/* High contrast light sidebar */
+section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] *,
+section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] *,
+section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] *,
+section[data-testid="stSidebar"] h1,
+section[data-testid="stSidebar"] h2,
+section[data-testid="stSidebar"] h3,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] span {color:#172B4D !important;opacity:1 !important;}
+section[data-testid="stSidebar"] hr {border-color:#B8CDD9 !important;}
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] > div {background:#FFFFFF !important;border-color:#B8CDD9 !important;}
+section[data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] span {color:#172B4D !important;}
+section[data-testid="stSidebar"] [data-testid="stAlert"] {background:#DCEBF4 !important;}
+
+.block-container {padding-top:1.7rem;max-width:1330px;}
+.hero {padding:35px 38px;border:1px solid #245365;border-radius:25px;background:radial-gradient(circle at 88% 20%,#1c5660 0%,transparent 32%),linear-gradient(110deg,#113447,#0d2433);box-shadow:0 16px 55px #03121b55;margin-bottom:20px;}
+.eyebrow {font-size:12px;font-weight:800;letter-spacing:2.2px;color:#62e2d2;text-transform:uppercase;}
+.hero h1 {font-size:clamp(30px,4vw,54px);line-height:1.1;margin:14px 0 12px;color:#f5fcff;font-weight:800;}
+.hero p {font-size:17px;color:#c5dce5;max-width:820px;line-height:1.6;}
+.chips {display:flex;flex-wrap:wrap;gap:9px;margin-top:20px;}
+.chip {font-size:12px;color:#b9f5ee;background:#164b51;border:1px solid #33777a;padding:8px 12px;border-radius:50px;}
+.section-kicker {font-size:12px;letter-spacing:1.8px;text-transform:uppercase;color:#69d9c9;font-weight:800;margin-top:18px;}
+.test-card {border:1px solid #2c4755;border-radius:18px;padding:19px 18px;background:linear-gradient(150deg,#142c3b,#0e2332);min-height:166px;margin-bottom:8px;}
+.test-num {display:inline-block;color:#70e5d2;font-weight:800;font-size:13px;margin-bottom:11px;}
+.test-title {font-weight:800;font-size:17px;color:#f3fbff;margin-bottom:8px;}
+.test-desc {font-size:13px;color:#b9cfda;line-height:1.5;}
+.small-note {border-left:3px solid #63dac7;background:#12313c;border-radius:8px;padding:14px 18px;color:#c7e2e8;font-size:14px;line-height:1.6;}
+.stButton>button[kind="primary"] {background:linear-gradient(90deg,#16b6a6,#1785a4);color:white;border:none;border-radius:13px;font-weight:800;padding:12px 23px;box-shadow:0 8px 25px #13b6a533;}
+[data-testid="stMetric"] {border:1px solid #2d4a59;background:#102c3b;border-radius:15px;padding:14px;}
+[data-testid="stMetricLabel"], [data-testid="stMetricLabel"] * {color:#c9e1ea !important;opacity:1 !important;}
+[data-testid="stMetricValue"], [data-testid="stMetricValue"] * {color:#ffffff !important;opacity:1 !important;font-weight:800 !important;}
+[data-testid="stMetricDelta"], [data-testid="stMetricDelta"] * {opacity:1 !important;}
+[data-testid="stFileUploader"] {border:1px dashed #448b90;border-radius:16px;padding:10px;background:#102a39;}
+hr {border-color:#2b4757!important;}
+</style>
+'''
+st.markdown(CSS,unsafe_allow_html=True)
+
+I18N={
+'AZ':{
+ 'subtitle':'Ovuc xətlərinin izahlı kompüter görməsi analizi','tagline':'Bir şəkil. İki metod. Beş dayanıqlıq sınağı. Aydın elmi izah.','badge1':'Black-hat + Frangi','badge2':'5 görüntü dəyişikliyi','badge3':'Şəffaf nəticələr','badge4':'Klinik diaqnoz deyil',
+ 'lang':'İnterfeys dili','navigation':'Bölmələr','tab1':'Analiz laboratoriyası','tab2':'Nəticələrin izahı','tab3':'Tədqiqat sübutları','tab4':'Layihə haqqında',
+ 'pretitle':'ANALİZDƏN ƏVVƏL','preheading':'Hansı dayanıqlıq testləri aparılacaq?','preintro':'Eyni ovuc şəklinə aşağıdakı beş süni dəyişiklik tətbiq olunur. Hər iki metodun dəyişdirilmiş maskası orijinal maskası ilə müqayisə edilir.',
+ 'tests':[('🌙','Zəif işıq','Şəkil qaraldılır. Zəif işıqlandırmada aşkarlanan xətlərin nə qədər qorunduğu yoxlanılır.'),('☀️','Güclü işıq','Parlaqlıq artırılır. İşıq çox olduqda xətlərin sabitliyi ölçülür.'),('◐','Aşağı kontrast','Xətlərlə dəri arasındakı vizual fərq azaldılır.'),('✳','Gaussian səs-küyü','Kamera səs-küyünü təqlid edən təsadüfi piksel dəyişiklikləri əlavə olunur.'),('◌','Gaussian bulanıqlığı','Fokus itkisini təqlid etmək üçün görüntü bulanıqlaşdırılır.')],
+ 'upload':'Ovuc şəklini yüklə','uploadhelp':'JPG, PNG və ya WEBP. Ovuc açıq, ön tərəfdən görünən və yaxşı işıqlandırılmış olsun.','start':'▶ Bütün 5 testi işə sal','loading':'Ovuc ROI-si və 10 maska müqayisəsi hesablanır...','privacy':'Şəkil yalnız cari analiz üçün işlənir. Hesabatı endirsəniz, şəkil də ZIP-ə daxil olacaq. Şəxsi şəkilləri yalnız razılıqla yükləyin.',
+ 'resulttitle':'Canlı analiz nəticələri','roi':'Aşkarlanmış ovuc sahəsi (ROI)','bh':'Black-hat: ilkin maska','fr':'Frangi: ilkin maska','baseline':'İlkin maska ölçmələri','robust':'Beş test üzrə IoU müqayisəsi','download':'⬇ Tam ZIP hesabatını endir','diagnostic':'Səs-küy testi üzrə diaqnostika','empty':'Dəyişdirilmiş maska boşdur — bu, həmin testdə aşkarlamanın dayanması deməkdir. Səbəbi ayrıca yoxlamaq lazımdır.','comparison':'Vizual müqayisə','selecttest':'Test seç','selectmethod':'Metod seç','panels':'Yuxarı: orijinal / dəyişdirilmiş şəkil. Aşağı: orijinal / dəyişdirilmiş maska (qırmızı).','metrics':'Metriklər nə deməkdir?','science':'Elmi məhdudiyyət','sciencebody':'IoU və Dice orijinal və dəyişdirilmiş maskaların uyğunluğunu ölçür, ekspert tərəfindən təsdiqlənmiş qırışların aşkarlanma dəqiqliyini yox. ROI təxminidir. Klinik diaqnoz və tibbi etibarlılıq təsdiqlənməyib.',
+ 'historical':'Əvvəlki eksperimentlər','p2':'P2 — bir görüntü üzrə tarixi sabitlik testləri','p3':'P3 — 17 müxtəlif iştirakçı üzrə təsviri maska ölçmələri','historynote':'P2, P3 və canlı v3 fərqli protokollardan istifadə edib. Onların nəticələrini birləşdirib eyni eksperiment kimi təqdim etmək olmaz.',
+ 'about':'Layihənin məqsədi','aboutbody':'MorphoSense AI ovuc xətlərinin mümkün namizədlərini çıxaran və görüntü keyfiyyətinin bu nəticələrə təsirini göstərən təhsil və tədqiqat prototipidir. Gələcəkdə ekspert annotasiyaları, daha çox görüntü və müstəqil validasiya ilə inkişaf etdirilə bilər.','refs':'Elmi mənbələr','need':'Analizə başlamaq üçün əvvəlcə ovuc şəkli yüklə.','wins':'Black-hat üstün olduğu testlər','meanbh':'Black-hat orta IoU','meanfr':'Frangi orta IoU','lowest':'Ən böyük dəyişiklik','winner':'Bu görüntüdə Black-hat {n}/5 testdə daha yüksək uyğunluq göstərdi. Bu, klinik dəqiqlik sübutu deyil.'},
 'EN':{
  'subtitle':'Explainable computer vision for palmar crease analysis','tagline':'One image. Two methods. Five robustness tests. Clear scientific explanations.','badge1':'Black-hat + Frangi','badge2':'5 image perturbations','badge3':'Transparent results','badge4':'Not a clinical diagnosis',
  'lang':'Interface language','navigation':'Sections','tab1':'Analysis lab','tab2':'Understand results','tab3':'Research evidence','tab4':'About',
@@ -126,3 +190,8 @@ with tabs[3]:
     st.subheader(t['about']);st.write(t['aboutbody'])
     st.subheader(t['refs'])
     st.markdown('''- [Biesecker et al. (2009), *Elements of Morphology: Standard Terminology for the Hands and Feet*](https://doi.org/10.1002/ajmg.a.32596) — anatomical terminology.
+- [NIH MedlinePlus — Single palmar crease](https://medlineplus.gov/ency/article/003290.htm) — clinical background, not software validation.
+- [Frangi et al. (1998), *Multiscale Vessel Enhancement Filtering*](https://doi.org/10.1007/BFb0056195) — methodological origin of ridge filtering.
+- [Taha & Hanbury (2015), segmentation evaluation metrics](https://doi.org/10.1186/s12880-015-0068-x) — methodological context for overlap measures.
+
+**Evidence levels:** Published references ≠ historical P2/P3 ≠ live single-image analysis. No expert ground-truth segmentation or clinical validation is included.''')
