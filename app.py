@@ -12,21 +12,34 @@ CSS='''
 @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700;800&display=swap');
 html,body,[class*="css"],.stApp {font-family:'DM Sans',sans-serif;}
 .stApp {background:linear-gradient(140deg,#071521 0%,#0c1d2b 48%,#0b1622 100%);color:#edf7fb;}
-section[data-testid="stSidebar"] {background:#0b1c2b;border-right:1px solid #243d4c;}
+section[data-testid="stSidebar"] {
+    background: #EAF3F8 !important;
+    border-right: 1px solid #B8CDD9 !important;
+}
 
 /* Ensure readable typography in the dark sidebar across Streamlit themes. */
+/* LIGHT SIDEBAR WITH DARK, READABLE TEXT */
+section[data-testid="stSidebar"] *,
 section[data-testid="stSidebar"] h1,
 section[data-testid="stSidebar"] h2,
 section[data-testid="stSidebar"] h3,
-section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] p,
-section[data-testid="stSidebar"] [data-testid="stMarkdownContainer"] strong,
-section[data-testid="stSidebar"] [data-testid="stWidgetLabel"] p,
-section[data-testid="stSidebar"] label p {color:#f1faff !important;opacity:1 !important;}
-section[data-testid="stSidebar"] [data-testid="stCaptionContainer"],
-section[data-testid="stSidebar"] [data-testid="stCaptionContainer"] p,
-section[data-testid="stSidebar"] small {color:#bdd7e5 !important;opacity:1 !important;}
-section[data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] > div {background-color:#173647 !important;color:#f1faff !important;border-color:#416778 !important;}
-section[data-testid="stSidebar"] [data-testid="stSelectbox"] div[data-baseweb="select"] span {color:#f1faff !important;}
+section[data-testid="stSidebar"] p,
+section[data-testid="stSidebar"] strong,
+section[data-testid="stSidebar"] span,
+section[data-testid="stSidebar"] label,
+section[data-testid="stSidebar"] small {
+    color: #172B4D !important;
+    opacity: 1 !important;
+}
+
+section[data-testid="stSidebar"] hr {
+    border-color: #B8CDD9 !important;
+}
+
+section[data-testid="stSidebar"] [data-baseweb="select"] > div {
+    background-color: #FFFFFF !important;
+    border-color: #B8CDD9 !important;
+}
 
 .block-container {padding-top:1.7rem;max-width:1330px;}
 .hero {padding:35px 38px;border:1px solid #245365;border-radius:25px;background:radial-gradient(circle at 88% 20%,#1c5660 0%,transparent 32%),linear-gradient(110deg,#113447,#0d2433);box-shadow:0 16px 55px #03121b55;margin-bottom:20px;}
